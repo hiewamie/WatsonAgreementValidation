@@ -73,7 +73,7 @@ def read_watson_agreement(file):
 
     if hasattr(file, "seek"):
         file.seek(0)  # rewind if it's an in-memory/uploaded file object
-    df = pd.read_excel(file, header=[header_row, header_row + 1] , engine='openpyxl')
+    df = pd.read_excel(file, header=[header_row] , engine='openpyxl')
 
     new_cols = []
     for col in df.columns:
