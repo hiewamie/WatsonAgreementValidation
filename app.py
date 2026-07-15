@@ -262,20 +262,44 @@ def build_report_bytes(issues):
 
 # ───────────────────────── UI ─────────────────────────
 
-st.set_page_config(page_title="Promotion Agreement Comparator", page_icon="📊", layout="centered")
+st.set_page_config(page_title="Promotion Agreement Comparator", page_icon="📊", layout="wide")
+
+st.markdown(
+    """
+    <style>
+    .block-container { padding-top: 2rem; max-width: 1100px; }
+    div[data-testid="stMetric"] {
+        background: #f7f8fa; border: 1px solid #e6e6e6; border-radius: 10px;
+        padding: 14px 16px;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
 st.title("📊 Promotion Agreement Comparator")
-st.caption("Compare a Supplier Reply against the Watson Agreement and get a discrepancy report.")
+st.caption("Drag in a Supplier Reply and compare it against the Watson Agreement to spot discrepancies.")
+
+st.divider()
 
 col1, col2 = st.columns(2)
 with col1:
-    supplier_file = st.file_uploader("Supplier Reply Excel", type=["xlsx", "xls"], key="supplier")
+    supplier_file = st.file_uploader(
+        "📄 Supplier Reply Excel", type=["xlsx", "xls"], key="supplier",
+        help="Required every time — this is the file that changes."
+    )
 with col2:
     watson_file = st.file_uploader(
-        "Watson Agreement Excel (optional — leave blank to use the default file)",
-        type=["xlsx", "xls"], key="watson"
+        "📄 Watson Agreement Excel", type=["xlsx", "xls"], key="watson",
+        help="Optional — leave blank to use the bundled default file, if one exists."
     )
 
-if st.button("Compare", type="primary", disabled=(supplier_file is None)):
+st.write("")
+compare_clicked = st.button(
+    "🔍 Compare", type="primary", use_container_width=True, disabled=(supplier_file is None)
+)
+
+if compare_clicked:
     with st.spinner("Reading files and comparing..."):
         try:
             supplier = read_supplier_reply(supplier_file)
@@ -283,7 +307,6 @@ if st.button("Compare", type="primary", disabled=(supplier_file is None)):
             if watson_file is not None:
                 watson = read_watson_agreement(watson_file)
             else:
-                # Falls back to a default file bundled in the same repo/folder as app.py
                 try:
                     with open("Watson Agreement.xlsx", "rb") as f:
                         watson = read_watson_agreement(io.BytesIO(f.read()))
@@ -300,20 +323,52 @@ if st.button("Compare", type="primary", disabled=(supplier_file is None)):
             st.error(f"Something went wrong while reading the files: {e}")
             st.stop()
 
-    st.success(f"✅ {ok_count} PLUs matched perfectly")
+    st.divider()
+
+    total_plu = ok_count + len({i["PLU"] for i in issues}) if issues else ok_count
+    mismatches = [i for i in issues if "Mismatch" in i["Issue"]]
+    missing = [i for i in issues if "❌" in i["Issue"]]
+
+    m1, m2, m3, m4 = st.columns(4)
+    m1.metric("Total PLUs compared", total_plu)
+    m2.metric("✅ Matched perfectly", ok_count)
+    m3.metric("⚠️ Field mismatches", len(mismatches))
+    m4.metric("❌ Missing PLUs", len(missing))
 
     if not issues:
         st.balloons()
-        st.info("Perfect match — no discrepancies found!")
+        st.success("Perfect match — no discrepancies found!")
     else:
-        st.warning(f"⚠️ {len(issues)} issues found")
-        df_issues = pd.DataFrame(issues)
-        st.dataframe(df_issues, use_container_width=True, hide_index=True)
-
         report_bytes = build_report_bytes(issues)
         st.download_button(
             label="⬇️ Download Excel Report",
             data=report_bytes,
             file_name="comparison_report.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            type="primary",
         )
+
+        st.write("")
+        search = st.text_input("🔎 Filter by PLU or product name", placeholder="e.g. 98079 or Cebion")
+
+        def apply_filter(rows):
+            if not search:
+                return rows
+            q = search.strip().lower()
+            return [r for r in rows if q in str(r.get("PLU", "")).lower() or q in str(r.get("Product", "")).lower()]
+
+        tab1, tab2 = st.tabs([f"⚠️ Mismatches ({len(mismatches)})", f"❌ Missing PLUs ({len(missing)})"])
+
+        with tab1:
+            filtered = apply_filter(mismatches)
+            if filtered:
+                st.dataframe(pd.DataFrame(filtered), use_container_width=True, hide_index=True)
+            else:
+                st.caption("No mismatches" + (" matching that filter." if search else "."))
+
+        with tab2:
+            filtered = apply_filter(missing)
+            if filtered:
+                st.dataframe(pd.DataFrame(filtered), use_container_width=True, hide_index=True)
+            else:
+                st.caption("No missing PLUs" + (" matching that filter." if search else "."))
