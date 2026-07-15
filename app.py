@@ -262,41 +262,118 @@ def build_report_bytes(issues):
 
 # ───────────────────────── UI ─────────────────────────
 
-st.set_page_config(page_title="Promotion Agreement Comparator", page_icon="📊", layout="wide")
+st.set_page_config(page_title="Promotion Agreement Comparator", page_icon="◇", layout="wide")
+
+ACCENT = "#00e5c7"
 
 st.markdown(
-    """
+    f"""
     <style>
-    .block-container { padding-top: 2rem; max-width: 1100px; }
-    div[data-testid="stMetric"] {
-        background: #f7f8fa; border: 1px solid #e6e6e6; border-radius: 10px;
+    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+    html, body, [class*="css"] {{
+        font-family: 'JetBrains Mono', 'Courier New', monospace !important;
+    }}
+
+    .block-container {{
+        padding-top: 2.5rem;
+        max-width: 1100px;
+    }}
+
+    /* Title */
+    h1 {{
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        font-weight: 700 !important;
+        font-size: 1.6rem !important;
+        color: {ACCENT} !important;
+        border-bottom: 1px solid rgba(0,229,199,0.25);
+        padding-bottom: 0.6rem;
+    }}
+
+    /* Caption / subtitle */
+    [data-testid="stCaptionContainer"] {{
+        letter-spacing: 0.03em;
+        opacity: 0.65;
+    }}
+
+    /* Metric cards */
+    div[data-testid="stMetric"] {{
+        background: #0d131b;
+        border: 1px solid rgba(0,229,199,0.25);
+        border-radius: 4px;
         padding: 14px 16px;
-    }
+    }}
+    div[data-testid="stMetric"] label {{
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        font-size: 0.72rem !important;
+        opacity: 0.6;
+    }}
+    div[data-testid="stMetricValue"] {{
+        color: {ACCENT} !important;
+    }}
+
+    /* File uploader */
+    [data-testid="stFileUploaderDropzone"] {{
+        background: #0d131b !important;
+        border: 1px dashed rgba(0,229,199,0.35) !important;
+        border-radius: 4px !important;
+    }}
+
+    /* Buttons */
+    .stButton button, .stDownloadButton button {{
+        border: 1px solid {ACCENT} !important;
+        border-radius: 3px !important;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        font-size: 0.85rem !important;
+        transition: box-shadow 0.15s ease;
+    }}
+    .stButton button:hover, .stDownloadButton button:hover {{
+        box-shadow: 0 0 10px rgba(0,229,199,0.45);
+    }}
+
+    /* Tabs */
+    button[data-baseweb="tab"] {{
+        font-family: 'JetBrains Mono', monospace !important;
+        letter-spacing: 0.03em;
+    }}
+    button[aria-selected="true"] {{
+        color: {ACCENT} !important;
+    }}
+    div[data-baseweb="tab-highlight"] {{
+        background-color: {ACCENT} !important;
+    }}
+
+    hr, [data-testid="stDivider"] {{
+        border-color: rgba(0,229,199,0.15) !important;
+    }}
     </style>
     """,
     unsafe_allow_html=True,
 )
 
-st.title("📊 Promotion Agreement Comparator")
-st.caption("Drag in a Supplier Reply and compare it against the Watson Agreement to spot discrepancies.")
+st.title("◇ Promotion Agreement Comparator")
+st.caption("// drag in a supplier reply, compare against the watson agreement, flag discrepancies")
 
 st.divider()
 
 col1, col2 = st.columns(2)
 with col1:
     supplier_file = st.file_uploader(
-        "📄 Supplier Reply Excel", type=["xlsx", "xls"], key="supplier",
+        "SUPPLIER REPLY EXCEL", type=["xlsx", "xls"], key="supplier",
         help="Required every time — this is the file that changes."
     )
 with col2:
     watson_file = st.file_uploader(
-        "📄 Watson Agreement Excel", type=["xlsx", "xls"], key="watson",
+        "WATSON AGREEMENT EXCEL", type=["xlsx", "xls"], key="watson",
         help="Optional — leave blank to use the bundled default file, if one exists."
     )
 
 st.write("")
 compare_clicked = st.button(
-    "🔍 Compare", type="primary", use_container_width=True, disabled=(supplier_file is None)
+    "▶ Compare", type="primary", use_container_width=True, disabled=(supplier_file is None)
 )
 
 if compare_clicked:
@@ -330,18 +407,17 @@ if compare_clicked:
     missing = [i for i in issues if "❌" in i["Issue"]]
 
     m1, m2, m3, m4 = st.columns(4)
-    m1.metric("Total PLUs compared", total_plu)
-    m2.metric("✅ Matched perfectly", ok_count)
-    m3.metric("⚠️ Field mismatches", len(mismatches))
-    m4.metric("❌ Missing PLUs", len(missing))
+    m1.metric("TOTAL COMPARED", total_plu)
+    m2.metric("MATCHED", ok_count)
+    m3.metric("MISMATCHES", len(mismatches))
+    m4.metric("MISSING", len(missing))
 
     if not issues:
-        st.balloons()
-        st.success("Perfect match — no discrepancies found!")
+        st.success("✓ PERFECT MATCH — no discrepancies found")
     else:
         report_bytes = build_report_bytes(issues)
         st.download_button(
-            label="⬇️ Download Excel Report",
+            label="⬇ DOWNLOAD REPORT (.xlsx)",
             data=report_bytes,
             file_name="comparison_report.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -349,7 +425,7 @@ if compare_clicked:
         )
 
         st.write("")
-        search = st.text_input("🔎 Filter by PLU or product name", placeholder="e.g. 98079 or Cebion")
+        search = st.text_input("FILTER — plu or product name", placeholder="e.g. 98079 or Cebion")
 
         def apply_filter(rows):
             if not search:
@@ -357,7 +433,7 @@ if compare_clicked:
             q = search.strip().lower()
             return [r for r in rows if q in str(r.get("PLU", "")).lower() or q in str(r.get("Product", "")).lower()]
 
-        tab1, tab2 = st.tabs([f"⚠️ Mismatches ({len(mismatches)})", f"❌ Missing PLUs ({len(missing)})"])
+        tab1, tab2 = st.tabs([f"⚠ MISMATCHES ({len(mismatches)})", f"✕ MISSING PLUs ({len(missing)})"])
 
         with tab1:
             filtered = apply_filter(mismatches)
