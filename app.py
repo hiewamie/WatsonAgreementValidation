@@ -73,12 +73,21 @@ def read_watson_agreement(file):
 
     if hasattr(file, "seek"):
         file.seek(0)  # rewind if it's an in-memory/uploaded file object
-    df = pd.read_excel(file, header=[header_row] , engine='openpyxl')
+
+    # Header genuinely spans 2 rows: a group label (e.g. "Cost (RM)") on the
+    # first row, and a sub-label (e.g. "Normal" / "Promo") on the second.
+    # Data starts right after, on header_row + 2.
+    df = pd.read_excel(file, header=[header_row, header_row + 1], engine='openpyxl')
 
     new_cols = []
     for col in df.columns:
-        s = str(col).strip().replace('\xa0', ' ').replace('\u2019', "'")
-        new_cols.append(s if 'Unnamed' not in s else 'unknown')
+        parts = []
+        items = col if isinstance(col, tuple) else [col]
+        for c in items:
+            s = str(c).strip().replace('\xa0', ' ').replace('\u2019', "'")
+            if s not in ['nan', ''] and 'Unnamed' not in s:
+                parts.append(s)
+        new_cols.append(' | '.join(parts) if parts else 'unknown')
     df.columns = new_cols
 
     records = []
